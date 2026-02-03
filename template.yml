@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: honeypot-0adb9c90 - Computation and API
+
+Globals:
+  Function:
+    CodeUri: .
+    Runtime: java21
+    Tracing: Active
+    Architectures:
+      - arm64
+    EventInvokeConfig:
+      MaximumRetryAttempts: 0
+    AutoPublishAlias: live
+    SnapStart:
+      ApplyOn: PublishedVersions
+
+    Environment:
+      Variables:
+        ENV: !Ref Env
+        AWS_SES_SOURCE: noreply@poja.io
+
+
+        secret: "mysecret"
+
+
+Parameters:
+  Env:
+    Type: String
+
+Resources:
+
+  FrontalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.poja.app.handler.LambdaHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 30
+      Role: !Sub '{{resolve:ssm:/honeypot-0adb9c90/${Env}/execution/role-arn}}'
+
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+
+      ReservedConcurrentExecutions: 5
+
+  ApiUrlSSM:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join [ '', [ /honeypot-0adb9c90/, !Ref Env, /api/url ] ]
+      Type: String
+      Value: !GetAtt FrontalFunctionUrl.FunctionUrl
+
+Outputs:
+  ApiUrl:
+    Description: Url to access the frontal function
+    Value: !GetAtt FrontalFunctionUrl.FunctionUrl
